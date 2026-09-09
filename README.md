@@ -3,6 +3,7 @@
 [![Python Standard Library](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Dependencies: Zero](https://img.shields.io/badge/Dependencies-Standard%20Library%20Only-brightgreen.svg)]()
+[![Tests: Passing](https://img.shields.io/badge/Tests-7%20Passed-brightgreen.svg)]()
 
 A modular, production-ready implementation of the **Water Jug Problem** using classical **State-Space Search** paradigms in Artificial Intelligence. This project models the problem domain formally and provides implementations of both **Breadth-First Search (BFS)** for guaranteed path optimality and **Depth-First Search (DFS)** for deep exploratory search.
 
@@ -11,30 +12,50 @@ A modular, production-ready implementation of the **Water Jug Problem** using cl
 ## 📌 Student & Course Metadata
 * **Student Register Number**: `113025148034`
 * **Deterministic Random Seed**: `148034` (`int("113025148034"[-6:])`)
-* **Framework / Dependencies**: Python Standard Library only (`argparse`, `collections`, `random`, `math`, `time`, `typing`)
+* **Framework / Dependencies**: Python Standard Library only (`argparse`, `collections`, `random`, `math`, `time`, `typing`, `unittest`)
 
 ---
 
-## 🧠 Theoretical Background & Problem Formulation
+## 📁 Repository Structure
 
-In Artificial Intelligence, search problems are formally modeled by a 5-tuple:
-$$\mathcal{P} = \langle S, s_0, A(s), T(s, a), G(s) \rangle$$
+The project strictly adheres to the following production directory structure:
+
+```text
+water-jug-solver/
+├── src/                  # Python source code (models, solver, CLI entrypoint)
+│   ├── __init__.py       # Package definition
+│   ├── models.py         # State, TransitionStep, SearchResult data types
+│   ├── solver.py         # WaterJugProblem class, transition rules, BFS & DFS
+│   └── main.py           # Main CLI entry point and terminal reporting
+├── tests/                # Automated unit tests using Python's unittest
+│   ├── __init__.py       # Test package definition
+│   └── test_solver.py    # Test cases for BFS/DFS optimality, validity, and edge cases
+├── docs/                 # Project documentation and visual artifacts
+│   ├── report.md         # Comprehensive academic report
+│   └── screenshots/      # Directory placeholder for output screenshots
+│       └── .gitkeep
+├── README.md             # Project documentation and execution instructions
+├── requirements.txt      # Python dependencies (Standard library only)
+├── .gitignore            # Standard Python environment and artifact ignores
+└── LICENSE               # Standard MIT License
+```
+
+---
+
+## 🧠 Theoretical Formulation & Transition Model
+
+The search problem is formally defined as:
+$$\mathcal{P} = \langle \mathcal{S}, s_0, \mathcal{A}(s), \mathcal{T}(s, a), \mathcal{G}(s) \rangle$$
 
 ### 1. State Space ($\mathcal{S}$)
-A state is represented as an ordered 2-tuple $(J_A, J_B)$, denoting the current volume of water contained in Jug A and Jug B respectively:
+A state is an ordered 2-tuple $(J_A, J_B)$ denoting the water in Jug A and Jug B:
 $$\mathcal{S} = \{ (a, b) \in \mathbb{Z}^2 \mid 0 \le a \le C_A \text{ and } 0 \le b \le C_B \}$$
-where $C_A$ is the maximum capacity of Jug A, and $C_B$ is the maximum capacity of Jug B.
 
-### 2. Initial State ($s_0$)
-Both jugs begin completely empty:
-$$s_0 = (0, 0)$$
+### 2. Initial State ($s_0$) & Goal Condition ($\mathcal{G}(s)$)
+* Initial state: $s_0 = (0, 0)$
+* Goal state: $\mathcal{G}(s) \iff (s_A = T) \lor (s_B = T)$
 
-### 3. Goal Condition ($G(s)$)
-The search terminates successfully when either jug contains precisely the target volume $T$:
-$$G(s) \iff (s_A = T) \lor (s_B = T)$$
-
-### 4. Transition Operators ($A(s) \to T(s, a)$)
-From any valid state $(a, b)$, up to 6 deterministic transition operators are evaluated:
+### 3. State Transition Operators ($\mathcal{A}(s) \to \mathcal{T}(s, a)$)
 
 | # | Action Name | Precondition | State Transition $(a, b) \to (a', b')$ | Description |
 |---|-------------|--------------|----------------------------------------|-------------|
@@ -45,92 +66,65 @@ From any valid state $(a, b)$, up to 6 deterministic transition operators are ev
 | 5 | `Pour Jug A -> Jug B` | $a > 0 \land b < C_B$ | $(a - \Delta, b + \Delta)$, where $\Delta = \min(a, C_B - b)$ | Pour water from A to B until B is full or A is empty |
 | 6 | `Pour Jug B -> Jug A` | $b > 0 \land a < C_A$ | $(a + \Delta, b - \Delta)$, where $\Delta = \min(b, C_A - a)$ | Pour water from B to A until A is full or B is empty |
 
-### 5. Mathematical Solvability (Bézout's Identity & Diophantine Equations)
-A water jug configuration $\langle C_A, C_B, T \rangle$ is mathematically solvable if and only if:
-1. $T \le \max(C_A, C_B)$ (The target cannot exceed the maximum single container volume).
+### 4. Mathematical Solvability (Bézout's Identity)
+A configuration $\langle C_A, C_B, T \rangle$ is mathematically solvable if and only if:
+1. $T \le \max(C_A, C_B)$
 2. $T \equiv 0 \pmod{\gcd(C_A, C_B)}$
 
-According to **Bézout's Identity**, any reachable water volume represents an integer linear combination:
-$$C_A \cdot x + C_B \cdot y = T \quad (x, y \in \mathbb{Z})$$
-If $T$ is not divisible by the greatest common divisor $\gcd(C_A, C_B)$, no valid sequence of pouring operations exists, and the solver terminates early before initiating search.
+By **Bézout's Identity**, any reachable water volume represents a linear combination $C_A \cdot x + C_B \cdot y = T$. If $T$ is not divisible by $\gcd(C_A, C_B)$, no valid sequence of operations exists.
 
 ---
 
 ## 🔍 Search Algorithms
 
-### Breadth-First Search (BFS)
-* **Data Structure**: First-In, First-Out (FIFO) queue via `collections.deque`.
-* **State Filtering**: Closed set / visited hash table `Set[Tuple[int, int]]` prevents infinite loops.
-* **Completeness**: Guaranteed complete in finite state spaces.
-* **Optimality**: **Guaranteed optimal**. Because each transition step has a uniform unit cost ($c = 1$), BFS is proven to discover the solution path with the minimum number of transition steps.
-* **Complexity**:
-  * Time Complexity: $\mathcal{O}(b^d)$ where $b$ is the effective branching factor ($b \le 6$) and $d$ is the shallowest goal depth.
-  * Space Complexity: $\mathcal{O}(b^d)$ (retains entire frontier in memory).
-
-### Depth-First Search (DFS)
-* **Data Structure**: Last-In, First-Out (LIFO) stack via Python `list`.
-* **State Filtering**: Graph-search visited set prevents cycles.
-* **Completeness**: Complete on finite state spaces.
-* **Optimality**: **Non-optimal**. DFS prioritizes traversing the deepest branches first, which frequently results in circuitous, non-minimal step sequences.
-* **Complexity**:
-  * Time Complexity: $\mathcal{O}(b^m)$ where $m$ is the maximum graph depth.
-  * Space Complexity: $\mathcal{O}(b \cdot m)$ (frontier scales linearly with search depth).
+| Characteristic | Breadth-First Search (BFS) | Depth-First Search (DFS) |
+|---|---|---|
+| **Frontier Structure** | FIFO Queue (`collections.deque`) | LIFO Stack (`list`) |
+| **Path Optimality** | **Guaranteed Optimal** (Shortest path in unit-cost search) | **Non-Optimal** (First path discovered) |
+| **Completeness** | Complete in finite graphs | Complete in finite graphs (with visited set) |
+| **Time Complexity** | $\mathcal{O}(b^d)$ | $\mathcal{O}(b^m)$ |
+| **Space Complexity** | $\mathcal{O}(b^d)$ | $\mathcal{O}(b \cdot m)$ |
 
 ---
 
-## 📁 Repository Structure
-
-```text
-.
-├── app.py          # Complete modular solver, CLI parser, and reporter
-├── README.md       # Architectural documentation and run guide
-└── .gitignore      # Standard Python environment and artifact ignores
-```
-
----
-
-## 🚀 Getting Started & Execution
+## 🚀 Execution Guide
 
 ### Prerequisites
 * Python **3.8+** installed.
-* Standard library only (no external packages or virtual environment activation required).
+* Zero external pip packages needed (standard library only).
 
-### 1. Clone the Repository
+### 1. Running the Default Benchmark ($C_A = 4\text{L}, C_B = 3\text{L}, T = 2\text{L}$)
+Run directly as a script:
 ```bash
-git clone https://github.com/<your-username>/water-jug-solver.git
-cd water-jug-solver
+python src/main.py
+```
+Or execute as a Python module:
+```bash
+python -m src.main
 ```
 
-### 2. Run the Default Benchmark ($C_A = 4\text{L}, C_B = 3\text{L}, T = 2\text{L}$)
+### 2. Command-Line Options
+Custom capacities and target values can be passed via CLI flags:
+
 ```bash
-python app.py
+# Custom capacities with Breadth-First Search
+python src/main.py --cap_a 5 --cap_b 3 --target 4 --algorithm bfs
+
+# Comparative analysis comparing BFS vs DFS side-by-side
+python src/main.py --cap_a 5 --cap_b 3 --target 4 --algorithm both
+
+# Mathematical unsolvability demonstration
+python src/main.py --cap_a 6 --cap_b 4 --target 5
+
+# Display help documentation
+python src/main.py --help
 ```
 
-### 3. Command-Line Options & Flags
-The application uses Python's `argparse` module to expose customizable parameters:
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--cap_a` | `int` | `4` | Maximum capacity of Jug A (liters). |
-| `--cap_b` | `int` | `3` | Maximum capacity of Jug B (liters). |
-| `--target` | `int` | `2` | Target water volume to obtain in either jug. |
-| `--algorithm` | `choice` | `bfs` | Search strategy: `bfs`, `dfs`, or `both`. |
-
-#### Example: Running with Custom Volumes
+### 3. Running Automated Unit Tests
+Execute the test suite using Python's built-in `unittest` runner:
 ```bash
-python app.py --cap_a 5 --cap_b 3 --target 4 --algorithm bfs
+python -m unittest discover -s tests -p "test_*.py"
 ```
-
-#### Example: Running Comparative Analysis (BFS vs DFS)
-```bash
-python app.py --cap_a 5 --cap_b 3 --target 4 --algorithm both
-```
-
-#### Example: Testing Unsolvable Scenario
-```bash
-python app.py --cap_a 6 --cap_b 4 --target 5
-```
-*Output will cleanly explain failure via Bézout's Identity ($\gcd(6, 4) = 2$, but $5 \pmod 2 \ne 0$).*
 
 ---
 
@@ -142,7 +136,7 @@ python app.py --cap_a 6 --cap_b 4 --target 5
    University Project | Artificial Intelligence & Search Algorithms
 ==================================================================================
  * Student Register Number : 113025148034
- * Deterministic Seed      : 5148034 (seed = int(reg_no[-6:]))
+ * Deterministic Seed      : 148034 (seed = int(reg_no[-6:]))
  * Random Module Status    : Seeded & Deterministic
 ==================================================================================
 
@@ -158,34 +152,29 @@ python app.py --cap_a 6 --cap_b 4 --target 5
 
 [>] ALGORITHM: Breadth-First Search (BFS)
 ==================================================================================
- [+] Solution Discovered! Total Transitions: 6 step(s)
+ [+] Solution Discovered! Total Transitions: 4 step(s)
 ----------------------------------------------------------------------------------
 Step   | Action                 | State (A, B)     | Operation Detail                
 ----------------------------------------------------------------------------------
-0      | Initial State          | (0L, 0L)   [0/4L, 0/3L] | Starting configuration          
-1      | Fill Jug B             | (0L, 3L)   [0/4L, 3/3L] | Fill Jug B to full capacity (3L)
-2      | Pour Jug B -> Jug A    | (3L, 0L)   [3/4L, 0/3L] | Pour 3L from Jug B into Jug A   
-3      | Fill Jug B             | (3L, 3L)   [3/4L, 3/3L] | Fill Jug B to full capacity (3L)
-4      | Pour Jug B -> Jug A    | (4L, 2L)   [4/4L, 2/3L] | Pour 1L from Jug B into Jug A   
-5      | Empty Jug A            | (0L, 2L)   [0/4L, 2/3L] | Empty all water from Jug A      
-6      | Pour Jug B -> Jug A    | (2L, 0L)   [2/4L, 0/3L] | Pour 2L from Jug B into Jug A   
+0      | Initial State          | (0L, 0L)  [0/4L, 0/3L] | Starting configuration          
+1      | Fill Jug B             | (0L, 3L)  [0/4L, 3/3L] | Fill Jug B to full capacity (3L)
+2      | Pour Jug B -> Jug A    | (3L, 0L)  [3/4L, 0/3L] | Pour 3L from Jug B into Jug A   
+3      | Fill Jug B             | (3L, 3L)  [3/4L, 3/3L] | Fill Jug B to full capacity (3L)
+4      | Pour Jug B -> Jug A    | (4L, 2L)  [4/4L, 2/3L] | Pour 1L from Jug B into Jug A   
 ----------------------------------------------------------------------------------
  PERMISSION & PERFORMANCE METRICS:
   * Optimal / Shortest Path : YES (Guaranteed by BFS)
-  * Path Length (Cost)      : 6 actions
-  * Nodes Explored          : 11
-  * Max Frontier Size       : 4
-  * Execution Time          : 0.1820 ms
+  * Path Length (Cost)      : 4 actions
+  * Nodes Explored          : 8
+  * Max Frontier Size       : 3
+  * Execution Time          : 0.0449 ms
 ==================================================================================
 ```
 
 ---
 
 ## 📚 Academic References
-1. **Russell, S., & Norvig, P.** (2020). *Artificial Intelligence: A Modern Approach* (4th ed.). Pearson.  
-   *(Chapter 3: Solving Problems by Searching — Formulating problems, graph search algorithms, BFS/DFS properties).*
+1. **Russell, S., & Norvig, P.** (2020). *Artificial Intelligence: A Modern Approach* (4th ed.). Pearson. (Chapter 3: Solving Problems by Searching).
 2. **Korf, R. E.** (1985). *Depth-first iterative-deepening: An optimal admissible tree search*. Artificial Intelligence, 27(1), 97–109.
-3. **Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C.** (2009). *Introduction to Algorithms* (3rd ed.). MIT Press.  
-   *(Chapter 22: Elementary Graph Algorithms — Breadth-First and Depth-First Traversal).*
-4. **Bézout, É.** (1779). *Théorie générale des équations algébriques*. Ph.-D. Pierres, Paris.  
-   *(Foundational Number Theory on Linear Diophantine Solvability).*
+3. **Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C.** (2009). *Introduction to Algorithms* (3rd ed.). MIT Press. (Chapter 22: Elementary Graph Algorithms).
+4. **Bézout, É.** (1779). *Théorie générale des équations algébriques*. Ph.-D. Pierres, Paris.
