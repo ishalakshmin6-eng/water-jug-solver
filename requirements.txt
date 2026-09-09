@@ -2,18 +2,15 @@
 # Water Jug Problem Solver - Requirements Specification
 # Student Register Number : 113025148034
 # ==============================================================================
-#
-# This project adheres strictly to ZERO external dependencies.
-# It runs entirely using the Python Standard Library (Python 3.8+).
-#
-# Built-in modules utilized:
-#   - argparse     (Command-line interface and flag handling)
-#   - collections  (deque for efficient BFS FIFO queue operations)
-#   - math         (math.gcd for Bezout's Identity solvability verification)
-#   - random       (Deterministic pseudo-random seeding)
-#   - sys, os      (Path resolution and process exit control)
-#   - time         (High-resolution perf_counter benchmarking)
-#   - typing       (Type hints and annotations)
-#   - unittest     (Automated testing framework)
-#
-# No pip installations are required to execute this project or its tests.
+# Web Application Framework
+streamlit>=1.30.0
+
+# Standard library modules utilized:
+#   - argparse
+#   - collections
+#   - math
+#   - random
+#   - sys, os
+#   - time
+#   - typing
+#   - unittest
